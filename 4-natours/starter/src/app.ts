@@ -10,16 +10,19 @@ app.set('query parser', (str: string) => qs.parse(str));
 app.use(express.json());
 app.use(express.static(`${__dirname}/../public`));
 
-app.use((req: Request, res: Response, next: NextFunction) => {
-    console.log('Hello from the middleware 👋');
-    next();
-});
-
 if (process.env.NODE_ENV === 'development') {
-    app.use(morgan('dev'));
+  app.use(morgan('dev'));
 }
 
 app.use('/api/v1/tours', tourRouter);
 app.use('/api/v1/users', userRouter);
+
+app.all('*splat', (req: Request, res: Response, next: NextFunction) => {
+  res.status(404).json({
+    status: 'fail',
+    message: `can't find ${req.originalUrl} on this server`
+  });
+  next();
+});
 
 export default app;

@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import Tour from '../models/tourModel';
 import APIFeatures from '../utils/apiFeatures';
+import catchAsync from '../utils/catchAsync';
+import AppError from '../utils/appError';
 
 export const aliasTopTours = (
   req: Request,
@@ -12,11 +14,8 @@ export const aliasTopTours = (
   next();
 };
 
-export const getAllTours = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
+export const getAllTours = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
     const features = new APIFeatures(Tour.find(), req.query)
       .filter()
       .sort()
@@ -32,40 +31,28 @@ export const getAllTours = async (
         tours
       }
     });
-  } catch (err) {
-    res.status(400).json({
-      status: 'fail',
-      message: err
-    });
   }
-};
+);
 
-export const getTourById = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
+export const getTourById = catchAsync(
+  async (req: Request, res: Response, next: Function): Promise<void> => {
     const tour = await Tour.findById(req.params.id);
 
+    if(!tour) {
+      return next(new AppError('No tour found with id: ' + req.params.id, 404))
+    }
+    
     res.status(200).json({
       status: 'success',
       data: {
         tour
       }
     });
-  } catch (_) {
-    res.status(400).json({
-      status: 'fail',
-      message: 'error retieving tour'
-    });
   }
-};
+);
 
-export const createTour = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
+export const createTour = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
     const tour = await Tour.create(req.body);
 
     res.status(200).json({
@@ -74,23 +61,19 @@ export const createTour = async (
         tour
       }
     });
-  } catch (err) {
-    res.status(400).json({
-      status: 'fail',
-      message: 'error creating tour'
-    });
   }
-};
+);
 
-export const updateTourById = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
+export const updateTourById = catchAsync(
+  async (req: Request, res: Response, next: Function): Promise<void> => {
     const tour = await Tour.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
       runValidators: true
     });
+
+    if(!tour) {
+      return next(new AppError('No tour found with id: ' + req.params.id, 404))
+    }
 
     res.status(200).json({
       status: 'success',
@@ -98,39 +81,27 @@ export const updateTourById = async (
         tour
       }
     });
-  } catch (_) {
-    res.status(400).json({
-      status: 'fail',
-      message: "can't update tour"
-    });
   }
-};
+);
 
-export const deleteTourById = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
+export const deleteTourById = catchAsync(
+  async (req: Request, res: Response, next: Function): Promise<void> => {
     const tour = await Tour.findByIdAndDelete(req.params.id);
     console.log(tour);
+
+    if(!tour) {
+      return next(new AppError('No tour found with id: ' + req.params.id, 404))
+    }
 
     res.status(204).json({
       status: 'success',
       data: null
     });
-  } catch (err) {
-    res.status(204).json({
-      status: 'fail',
-      message: err
-    });
   }
-};
+);
 
-export const getTourStats = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
+export const getTourStats = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
     const stats = await Tour.aggregate([
       {
         $match: { ratingsAverage: { $gte: 4.5 } }
@@ -159,19 +130,11 @@ export const getTourStats = async (
         stats
       }
     });
-  } catch (error) {
-    res.status(400).json({
-      status: 'fail',
-      message: error
-    });
   }
-};
+);
 
-export const getMonthlyPlan = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
+export const getMonthlyPlan = catchAsync(
+  async (req: Request, res: Response): Promise<void> => {
     const year = +req.params.year;
     const plan = await Tour.aggregate([
       {
@@ -212,10 +175,5 @@ export const getMonthlyPlan = async (
         plan
       }
     });
-  } catch (error) {
-    res.status(400).json({
-      status: 'fail',
-      message: error
-    });
   }
-};
+);

@@ -28,9 +28,9 @@ const tourSchema = new Schema<ITour>(
       required: [true, 'a tour must have a name'],
       unique: true,
       trim: true,
-      minlength: [10, 'must be more than or equal to 10 chars'],
-      maxlength: [50, 'must be less than or equal to 50 chars'],
-      validate: validator.isAlpha
+      minlength: [10, 'name must be more than or equal to 10 chars'],
+      maxlength: [50, 'name must be less than or equal to 50 chars'],
+      // validate: validator.isAlpha
     },
     slug: String,
     duration: {
@@ -48,7 +48,7 @@ const tourSchema = new Schema<ITour>(
       required: [true, 'a tour must have a difficulty'],
       enum: {
         values: ['easy', 'medium', 'difficult'],
-        message: 'must be: easy, medium or difficult'
+        message: 'difficulty must be: easy, medium or difficult'
       }
     },
     ratingsAverage: {

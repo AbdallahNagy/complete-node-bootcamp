@@ -1,6 +1,5 @@
 import mongoose, { Document, Query, Schema } from 'mongoose';
 import slugify from 'slugify';
-import validator from 'validator';
 
 export interface ITour extends Document {
   name: string;

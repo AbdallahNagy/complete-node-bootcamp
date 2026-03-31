@@ -58,6 +58,10 @@ export default (err: any, req: Request, res: Response, next: NextFunction) => {
     if (err.name === 'CastError') error = handleCastErrorDB(err);
     if (err.code === 11000) error = handleDuplicateFieldsDB(err);
     if (err.name === 'ValidationError') error = handleValidationErrorDB(err);
+    if (err.name === 'JsonWebTokenError')
+      error = new AppError('invalid token. please login again', 401);
+    if (err.name === 'TokenExpiredError')
+      error = new AppError('your token has expired. please login again', 401);
 
     sendErrorProd(error, res);
   }

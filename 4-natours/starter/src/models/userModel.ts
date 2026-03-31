@@ -8,6 +8,12 @@ interface IUser extends Document {
   photo?: string;
   password: string;
   passwordConfirm: string;
+  passwordChangedAt?: Date;
+  correctPassword(
+    candidatePassword: string,
+    userPassword: string
+  ): Promise<boolean>;
+  changedPasswordAfter(JWTTimestamp: number): boolean;
 }
 
 const userSchema = new Schema<IUser>({
@@ -28,11 +34,13 @@ const userSchema = new Schema<IUser>({
   password: {
     type: String,
     required: [true, 'A user must have a password'],
-    minlength: [5, 'Password must be more than or equal to 5 chars']
+    minlength: [5, 'Password must be more than or equal to 5 chars'],
+    select: false
   },
   passwordConfirm: {
     type: String,
     required: [true, 'Please confirm your password'],
+    select: false,
     validate: {
       // on create and save only
       validator: function(this: any, el: string) {
@@ -40,7 +48,8 @@ const userSchema = new Schema<IUser>({
       },
       message: 'Passwords are not the same!'
     }
-  }
+  },
+  passwordChangedAt: Date
 });
 
 userSchema.pre('save', async function() {
@@ -49,5 +58,25 @@ userSchema.pre('save', async function() {
   this.password = await bcrypt.hash(this.password, 12);
   this.passwordConfirm = undefined as any;
 });
+
+userSchema.methods.correctPassword = async function(
+  candidatePassword: string,
+  userPassword: string
+) {
+  return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+userSchema.methods.changedPasswordAfter = function(JWTTimestamp: number) {
+  if (this.passwordChangedAt) {
+    console.log(this.passwordChangedAt, JWTTimestamp);
+    
+    const changedTimestamp = Math.floor(
+      this.passwordChangedAt.getTime() / 1000
+    );
+    return JWTTimestamp < changedTimestamp;
+  }
+
+  return false;
+};
 
 export default mongoose.model<IUser>('User', userSchema);

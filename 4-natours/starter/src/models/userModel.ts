@@ -6,6 +6,7 @@ interface IUser extends Document {
   name: string;
   email: string;
   photo?: string;
+  role?: string;
   password: string;
   passwordConfirm: string;
   passwordChangedAt?: Date;
@@ -31,6 +32,11 @@ const userSchema = new Schema<IUser>({
     validate: [validator.isEmail, 'Please provide a valid email']
   },
   photo: String,
+  role: {
+    type: String,
+    enum: ['user', 'guide', 'lead-guide', 'admin'],
+    default: 'user'
+  },
   password: {
     type: String,
     required: [true, 'A user must have a password'],

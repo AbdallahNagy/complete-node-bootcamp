@@ -7,6 +7,9 @@ const router = express.Router();
 router.post('/signup', authController.signup);
 router.post('/login', authController.login);
 
+router.post('/forgotPassword', authController.forgotPassword);
+router.post('/resetPassword/:token', authController.resetPassword);
+// forgot password? -> fp page (sends email and enter code) -> reset password page 
 
 router.route('/')
     .get(userController.getAllUsers)

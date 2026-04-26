@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import validator from 'validator';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 interface IUser extends Document {
   name: string;
@@ -10,11 +11,14 @@ interface IUser extends Document {
   password: string;
   passwordConfirm: string;
   passwordChangedAt?: Date;
+  passwordResetToken?: string;
+  passwordResetExpires?: Date;
   correctPassword(
     candidatePassword: string,
     userPassword: string
   ): Promise<boolean>;
   changedPasswordAfter(JWTTimestamp: number): boolean;
+  createPasswordResetToken(): string;
 }
 
 const userSchema = new Schema<IUser>({
@@ -55,7 +59,9 @@ const userSchema = new Schema<IUser>({
       message: 'Passwords are not the same!'
     }
   },
-  passwordChangedAt: Date
+  passwordChangedAt: Date,
+  passwordResetToken: String,
+  passwordResetExpires: Date
 });
 
 userSchema.pre('save', async function() {
@@ -74,15 +80,36 @@ userSchema.methods.correctPassword = async function(
 
 userSchema.methods.changedPasswordAfter = function(JWTTimestamp: number) {
   if (this.passwordChangedAt) {
-    console.log(this.passwordChangedAt, JWTTimestamp);
-    
     const changedTimestamp = Math.floor(
       this.passwordChangedAt.getTime() / 1000
     );
+
     return JWTTimestamp < changedTimestamp;
   }
 
   return false;
+};
+
+userSchema.methods.createPasswordResetToken = function() {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  this.passwordResetToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000);
+
+  return resetToken;
+};
+
+userSchema.methods.hashResetToken = function(resetToken: string) {
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  return hashedToken;
 };
 
 export default mongoose.model<IUser>('User', userSchema);

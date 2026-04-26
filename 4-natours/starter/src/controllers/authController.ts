@@ -5,6 +5,8 @@ import { Request, Response } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import AppError from '../utils/appError';
 import { Types } from 'mongoose';
+import sendMail from '../utils/email';
+import crypto from 'crypto';
 
 export const signup = catchAsync(
   async (req: Request, res: Response): Promise<void> => {
@@ -53,6 +55,15 @@ const signToken = (id: Types.ObjectId): string => {
   return jwt.sign({ id }, process.env.JWT_SECRET!, {
     expiresIn: process.env.JWT_EXPIRES_IN as SignOptions['expiresIn']
   });
+};
+
+const hashResetToken = (token: string): string => {
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  return hashedToken;
 };
 
 export const protect = catchAsync(
@@ -107,3 +118,73 @@ export const restrictTo = (...roles: any) => {
     next();
   });
 };
+
+export const forgotPassword = catchAsync(
+  async (req: any, res: Response, next: Function) => {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) next(new AppError('no user found with the provided data', 404));
+
+    const resetToken = user?.createPasswordResetToken();
+
+    try {
+      sendMail({
+        email: user?.email!,
+        subject: 'your forget password token',
+        text: `here\'s your forget password url: ${req.protocol}://${req.get(
+          'host'
+        )}/api/v1/users/resetPassword/${resetToken}`
+      });
+
+      await user?.save();
+
+      res.status(200).json({
+        status: 'success'
+      });
+    } catch (err) {
+      console.log('error in sending email');
+
+      res.status(400).json({
+        status: 'fail',
+        message: 'error in sending email'
+      });
+    }
+  }
+);
+
+export const resetPassword = catchAsync(
+  async (req: any, res: Response, next: Function) => {
+    const { token } = req.params;
+    const { newPassword, passwordConfirm } = req.body;
+
+    const hashedToken = hashResetToken(token);
+
+    const user = await User.findOne({
+      passwordResetToken: hashedToken,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) return next(new AppError('invalid or expired token!', 404));
+
+    try {
+      user.password = newPassword;
+      user.passwordConfirm = passwordConfirm;
+      user.passwordChangedAt = new Date(Date.now());
+
+      user.passwordResetExpires = undefined;
+      user.passwordResetToken = undefined;
+
+      await user.save();
+
+      const token = signToken(user._id);
+
+      res.status(200).json({
+        status: 'success',
+        token: token
+      });
+    } catch (err: any) {
+      next(new AppError(err, 400));
+    }
+  }
+);

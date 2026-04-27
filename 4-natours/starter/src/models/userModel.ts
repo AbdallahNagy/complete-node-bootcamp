@@ -1,9 +1,9 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Query, Schema } from 'mongoose';
 import validator from 'validator';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-interface IUser extends Document {
+export interface IUser extends Document {
   name: string;
   email: string;
   photo?: string;
@@ -13,6 +13,7 @@ interface IUser extends Document {
   passwordChangedAt?: Date;
   passwordResetToken?: string;
   passwordResetExpires?: Date;
+  active: Boolean;
   correctPassword(
     candidatePassword: string,
     userPassword: string
@@ -59,6 +60,11 @@ const userSchema = new Schema<IUser>({
       message: 'Passwords are not the same!'
     }
   },
+  active: {
+    type: Boolean,
+    default: true,
+    select: false
+  },
   passwordChangedAt: Date,
   passwordResetToken: String,
   passwordResetExpires: Date
@@ -72,10 +78,14 @@ userSchema.pre('save', async function() {
 });
 
 userSchema.pre('save', function() {
-if (!this.isModified('password') || this.isNew) return;
+  if (!this.isModified('password') || this.isNew) return;
 
   this.passwordChangedAt = new Date(Date.now() - 1000);
-})
+});
+
+userSchema.pre(/^find/, function(this: Query<IUser[], IUser>) {
+  this.find({ active: { $ne: false } });
+});
 
 userSchema.methods.correctPassword = async function(
   candidatePassword: string,

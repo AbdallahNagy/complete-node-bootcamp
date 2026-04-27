@@ -1,7 +1,7 @@
 import { promisify } from 'util';
 import catchAsync from '../utils/catchAsync';
 import User from '../models/userModel';
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import AppError from '../utils/appError';
 import { Types } from 'mongoose';
@@ -67,7 +67,7 @@ const hashResetToken = (token: string): string => {
 };
 
 export const protect = catchAsync(
-  async (req: any, res: Response, next: Function) => {
+  async (req: any, res: Response, next: NextFunction) => {
     const { authorization } = req.headers;
     let token;
 
@@ -110,7 +110,7 @@ export const protect = catchAsync(
 export const restrictTo = (...roles: any) => {
   return catchAsync(async (req: any, res: Response, next: Function) => {
     if (!roles.includes(req.user.role)) {
-      next(
+      return next(
         new AppError('you do not have permission to perform this action', 403)
       );
     }
@@ -124,7 +124,8 @@ export const forgotPassword = catchAsync(
     const { email } = req.body;
     const user = await User.findOne({ email });
 
-    if (!user) next(new AppError('no user found with the provided data', 404));
+    if (!user)
+      return next(new AppError('no user found with the provided data', 404));
 
     const resetToken = user?.createPasswordResetToken();
 
@@ -170,7 +171,6 @@ export const resetPassword = catchAsync(
     try {
       user.password = newPassword;
       user.passwordConfirm = passwordConfirm;
-      user.passwordChangedAt = new Date(Date.now());
 
       user.passwordResetExpires = undefined;
       user.passwordResetToken = undefined;
@@ -183,8 +183,30 @@ export const resetPassword = catchAsync(
         status: 'success',
         token: token
       });
-    } catch (err: any) {
-      next(new AppError(err, 400));
+    } catch (err) {
+      next(new AppError(err.message, 400));
     }
+  }
+);
+
+export const updatePassword = catchAsync(
+  async (req: any, res: Response, next: NextFunction) => {
+    const { currentPassword, newPassword, passwordConfirm } = req.body;
+    const user = await User.findById(req.user._id).select('+password');
+
+    if (!user || !(await user.correctPassword(currentPassword, user.password)))
+      return next(new AppError('incorrect password!', 401));
+
+    user.password = newPassword;
+    user.passwordConfirm = passwordConfirm;
+
+    await user.save();
+
+    const token = signToken(user._id);
+
+    res.status(200).json({
+      status: 'success',
+      token: token
+    });
   }
 );

@@ -9,15 +9,21 @@ router.post('/login', authController.login);
 
 router.post('/forgotPassword', authController.forgotPassword);
 router.post('/resetPassword/:token', authController.resetPassword);
-// forgot password? -> fp page (sends email and enter code) -> reset password page 
+router.patch(
+  '/updatePassword',
+  authController.protect,
+  authController.updatePassword
+);
 
-router.route('/')
-    .get(userController.getAllUsers)
-    .post(userController.createUser);
+router
+  .route('/')
+  .get(userController.getAllUsers)
+  .post(userController.createUser);
 
-router.route('/:id')
-    .get(userController.getUserById)
-    .patch(userController.updateUserById)
-    .delete(userController.deleteUserById);
+router
+  .route('/:id')
+  .get(userController.getUserById)
+  .patch(userController.updateUserById)
+  .delete(userController.deleteUserById);
 
 export default router;
